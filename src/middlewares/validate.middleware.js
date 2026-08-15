@@ -8,7 +8,9 @@ export const validate = (schema) => {
       const details = {};
 
       for (const issue of result.error.issues) {
-        const field = issue.path.join(".");
+        const field = issue.path.length > 0
+          ? issue.path.join(".")
+          : "_form";
 
         if (!details[field]) {
           details[field] = issue.message;

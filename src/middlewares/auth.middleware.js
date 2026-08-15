@@ -17,10 +17,20 @@ export const authenticate = async (req, res, next) => {
   try {
     const payload = await verifyAccessToken(token);
 
-    req.userId = payload.sub;
+    const userId = Number(payload.sub);
+
+    if (!Number.isInteger(userId) || userId <= 0) {
+      throw new UnauthorizedError("Invalid token");
+    }
+
+    req.userId = userId;
 
     next();
   } catch (error) {
+    if (error instanceof UnauthorizedError) {
+      throw error;
+    }
+
     throw new UnauthorizedError("Invalid or expired token");
   }
 };
