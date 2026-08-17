@@ -23,10 +23,23 @@ export const create = async (req, res) => {
 };
 
 export const index = async (req, res) => {
-  const todos = await getTodosByUser(req.userId);
+  const { page, limit, completed } = req.validatedQuery;
+
+  const { todos, total } = await getTodosByUser({
+    userId: req.userId,
+    page,
+    limit,
+    completed
+  });
 
   res.json({
-    data: todos
+    data: todos,
+    meta: {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit)
+    }
   });
 };
 

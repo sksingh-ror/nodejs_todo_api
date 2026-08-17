@@ -19,24 +19,42 @@ export const createTodo = async ({ userId, title, description }) => {
   });
 };
 
-export const getTodosByUser = async (userId) => {
-  return prisma.todo.findMany({
-    where: {
-      userId
-    },
-    select: {
-      id: true,
-      title: true,
-      description: true,
-      completed: true,
-      userId: true,
-      createdAt: true,
-      updatedAt: true
-    },
-    orderBy: {
-      createdAt: "desc"
-    }
-  });
+export const getTodosByUser = async ({ userId, page = 1, limit = 10, completed }) => {
+  const skip = (page - 1) * limit;
+
+  const where = {
+    userId,
+    ...(completed !== undefined && { completed })
+  };
+
+  const [todos, total] = await Promise.all([
+    prisma.todo.findMany({
+      where,
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        completed: true,
+        userId: true,
+        createdAt: true,
+        updatedAt: true
+      },
+      orderBy: {
+        createdAt: "desc"
+      },
+      skip,
+      take: limit
+    }),
+
+    prisma.todo.count({
+      where
+    })
+  ]);
+
+  return {
+    todos,
+    total
+  };
 };
 
 export const getTodoById = async ({ id, userId }) => {

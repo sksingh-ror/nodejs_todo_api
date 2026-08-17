@@ -38,3 +38,23 @@ export const updateTodoSchema = z.object({
     message: "At least one field must be provided"
   }
 );
+
+export const listTodosSchema = z.object({
+  page: z.coerce
+    .number()
+    .int("Page must be an integer")
+    .positive("Page must be a positive integer")
+    .default(1),
+
+  limit: z.coerce
+    .number()
+    .int("Limit must be an integer")
+    .positive("Limit must be a positive integer")
+    .max(100, "Limit must not exceed 100")
+    .default(10),
+
+  completed: z
+    .enum(["true", "false"])
+    .transform((value) => value === "true")
+    .optional()
+});

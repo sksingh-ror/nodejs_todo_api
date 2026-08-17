@@ -11,7 +11,8 @@ import { validate } from "../middlewares/validate.middleware.js";
 import { validateId } from "../middlewares/validate-id.middleware.js";
 import {
   createTodoSchema,
-  updateTodoSchema
+  updateTodoSchema,
+  listTodosSchema
 } from "../validators/todo.validator.js";
 
 const router = Router();
@@ -26,6 +27,7 @@ router.post(
 router.get(
   "/",
   authenticate,
+  validate(listTodosSchema, "query"),
   index
 );
 

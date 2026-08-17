@@ -1,8 +1,8 @@
 import { ValidationError } from "../errors/validation.error.js";
 
-export const validate = (schema) => {
+export const validate = (schema, target = "body") => {
   return (req, res, next) => {
-    const result = schema.safeParse(req.body);
+    const result = schema.safeParse(req[target]);
 
     if (!result.success) {
       const details = {};
@@ -20,7 +20,11 @@ export const validate = (schema) => {
       throw new ValidationError(details);
     }
 
-    req.body = result.data;
+    if (target === "query") {
+      req.validatedQuery = result.data;
+    } else {
+      req[target] = result.data;
+    }
 
     next();
   };
