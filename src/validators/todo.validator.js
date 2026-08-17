@@ -56,5 +56,12 @@ export const listTodosSchema = z.object({
   completed: z
     .enum(["true", "false"])
     .transform((value) => value === "true")
+    .optional(),
+
+  search: z
+    .string()
+    .trim()
+    .min(1, "Search must not be empty")
+    .max(100, "Search must not exceed 100 characters")
     .optional()
 });

@@ -363,4 +363,189 @@ describe("GET /api/v1/todos", () => {
       totalPages: 2
     });
   });
+
+  it("searches todos by title and description", async () => {
+    const user = await createUserAndLogin("Search User");
+
+    const titleTodo = await request(app)
+      .post("/api/v1/todos")
+      .set("Authorization", `Bearer ${user.accessToken}`)
+      .send({
+        title: "Learn Node.js",
+        description: "Study backend development"
+      });
+
+    const descriptionTodo = await request(app)
+      .post("/api/v1/todos")
+      .set("Authorization", `Bearer ${user.accessToken}`)
+      .send({
+        title: "Learn Express",
+        description: "Build a Node.js REST API"
+      });
+
+    const unrelatedTodo = await request(app)
+      .post("/api/v1/todos")
+      .set("Authorization", `Bearer ${user.accessToken}`)
+      .send({
+        title: "Learn PostgreSQL",
+        description: "Database fundamentals"
+      });
+
+    expect(titleTodo.status).toBe(201);
+    expect(descriptionTodo.status).toBe(201);
+    expect(unrelatedTodo.status).toBe(201);
+
+    const response = await request(app)
+      .get("/api/v1/todos?search=node")
+      .set("Authorization", `Bearer ${user.accessToken}`);
+
+    expect(response.status).toBe(200);
+
+    expect(response.body.data).toHaveLength(2);
+
+    expect(
+      response.body.data.map((todo) => todo.id)
+    ).toEqual(
+      expect.arrayContaining([
+        titleTodo.body.data.id,
+        descriptionTodo.body.data.id
+      ])
+    );
+
+    expect(response.body.meta).toEqual({
+      page: 1,
+      limit: 10,
+      total: 2,
+      totalPages: 1
+    });
+  });
+
+  it("performs case-insensitive todo search", async () => {
+    const user = await createUserAndLogin("Case Search User");
+
+    const todo = await request(app)
+      .post("/api/v1/todos")
+      .set("Authorization", `Bearer ${user.accessToken}`)
+      .send({
+        title: "Learn Node.js",
+        description: "Backend development"
+      });
+
+    expect(todo.status).toBe(201);
+
+    const response = await request(app)
+      .get("/api/v1/todos?search=NODE")
+      .set("Authorization", `Bearer ${user.accessToken}`);
+
+    expect(response.status).toBe(200);
+
+    expect(response.body.data).toHaveLength(1);
+
+    expect(response.body.data[0]).toMatchObject({
+      id: todo.body.data.id,
+      title: "Learn Node.js"
+    });
+
+    expect(response.body.meta.total).toBe(1);
+  });
+
+  it("does not return matching todos belonging to another user", async () => {
+    const userA = await createUserAndLogin("Search Owner A");
+    const userB = await createUserAndLogin("Search Owner B");
+
+    const todoA = await request(app)
+      .post("/api/v1/todos")
+      .set("Authorization", `Bearer ${userA.accessToken}`)
+      .send({
+        title: "Node.js Todo A",
+        description: "User A todo"
+      });
+
+    const todoB = await request(app)
+      .post("/api/v1/todos")
+      .set("Authorization", `Bearer ${userB.accessToken}`)
+      .send({
+        title: "Node.js Todo B",
+        description: "User B todo"
+      });
+
+    expect(todoA.status).toBe(201);
+    expect(todoB.status).toBe(201);
+
+    const response = await request(app)
+      .get("/api/v1/todos?search=node")
+      .set("Authorization", `Bearer ${userA.accessToken}`);
+
+    expect(response.status).toBe(200);
+
+    expect(response.body.data).toHaveLength(1);
+
+    expect(response.body.data[0]).toMatchObject({
+      id: todoA.body.data.id,
+      title: "Node.js Todo A",
+      userId: userA.userId
+    });
+
+    expect(response.body.data[0].id).not.toBe(
+      todoB.body.data.id
+    );
+  });
+
+  it("supports search, completed filter, and pagination together", async () => {
+    const user = await createUserAndLogin("Combined Filter User");
+
+    const todos = [];
+
+    for (let i = 1; i <= 5; i++) {
+      const response = await request(app)
+        .post("/api/v1/todos")
+        .set("Authorization", `Bearer ${user.accessToken}`)
+        .send({
+          title: `Node.js Todo ${i}`,
+          description: `Learn Node.js topic ${i}`
+        });
+
+      expect(response.status).toBe(201);
+
+      todos.push(response.body.data);
+    }
+
+    // Complete the first three todos.
+    for (const todo of todos.slice(0, 3)) {
+      const response = await request(app)
+        .patch(`/api/v1/todos/${todo.id}`)
+        .set("Authorization", `Bearer ${user.accessToken}`)
+        .send({
+          completed: true
+        });
+
+      expect(response.status).toBe(200);
+    }
+
+    const response = await request(app)
+      .get(
+        "/api/v1/todos?search=node&completed=true&page=1&limit=2"
+      )
+      .set("Authorization", `Bearer ${user.accessToken}`);
+
+    expect(response.status).toBe(200);
+
+    expect(response.body.data).toHaveLength(2);
+
+    expect(
+      response.body.data.every(
+        (todo) =>
+          todo.completed === true &&
+          todo.title.toLowerCase().includes("node")
+      )
+    ).toBe(true);
+
+    expect(response.body.meta).toEqual({
+      page: 1,
+      limit: 2,
+      total: 3,
+      totalPages: 2
+    });
+  });
+
 });

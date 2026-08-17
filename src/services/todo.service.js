@@ -19,12 +19,28 @@ export const createTodo = async ({ userId, title, description }) => {
   });
 };
 
-export const getTodosByUser = async ({ userId, page = 1, limit = 10, completed }) => {
+export const getTodosByUser = async ({ userId, page = 1, limit = 10, completed, search }) => {
   const skip = (page - 1) * limit;
 
   const where = {
     userId,
-    ...(completed !== undefined && { completed })
+    ...(completed !== undefined && { completed}),
+    ...(search !== undefined && {
+      OR: [
+        {
+          title: {
+            contains: search,
+            mode: "insensitive"
+          }
+        },
+        {
+          description: {
+            contains: search,
+            mode: "insensitive"
+          }
+        }
+      ]
+    })
   };
 
   const [todos, total] = await Promise.all([
