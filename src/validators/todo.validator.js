@@ -63,5 +63,18 @@ export const listTodosSchema = z.object({
     .trim()
     .min(1, "Search must not be empty")
     .max(100, "Search must not exceed 100 characters")
-    .optional()
+    .optional(),
+
+  sort: z
+    .enum([
+      "createdAt",
+      "updatedAt",
+      "title",
+      "completed"
+    ])
+    .default("createdAt"),
+
+  order: z
+    .enum(["asc", "desc"])
+    .default("desc")
 });

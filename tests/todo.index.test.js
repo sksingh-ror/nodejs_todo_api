@@ -548,4 +548,207 @@ describe("GET /api/v1/todos", () => {
     });
   });
 
+  it("sorts todos by title in ascending order", async () => {
+    const user = await createUserAndLogin("Title Sort User");
+
+    for (const title of ["Zebra Todo", "Apple Todo", "Middle Todo"]) {
+      const response = await request(app)
+        .post("/api/v1/todos")
+        .set("Authorization", `Bearer ${user.accessToken}`)
+        .send({
+          title,
+          description: "Sorting test"
+        });
+
+      expect(response.status).toBe(201);
+    }
+
+    const response = await request(app)
+      .get("/api/v1/todos?sort=title&order=asc")
+      .set("Authorization", `Bearer ${user.accessToken}`);
+
+    expect(response.status).toBe(200);
+
+    expect(response.body.data.map((todo) => todo.title)).toEqual([
+      "Apple Todo",
+      "Middle Todo",
+      "Zebra Todo"
+    ]);
+  });
+
+  it("sorts todos by title in descending order", async () => {
+    const user = await createUserAndLogin("Title Desc Sort User");
+
+    for (const title of ["Apple Todo", "Zebra Todo", "Middle Todo"]) {
+      const response = await request(app)
+        .post("/api/v1/todos")
+        .set("Authorization", `Bearer ${user.accessToken}`)
+        .send({
+          title,
+          description: "Sorting test"
+        });
+
+      expect(response.status).toBe(201);
+    }
+
+    const response = await request(app)
+      .get("/api/v1/todos?sort=title&order=desc")
+      .set("Authorization", `Bearer ${user.accessToken}`);
+
+    expect(response.status).toBe(200);
+
+    expect(response.body.data.map((todo) => todo.title)).toEqual([
+      "Zebra Todo",
+      "Middle Todo",
+      "Apple Todo"
+    ]);
+  });
+
+  it("rejects an invalid sort field", async () => {
+    const user = await createUserAndLogin("Invalid Sort User");
+
+    const response = await request(app)
+      .get("/api/v1/todos?sort=password")
+      .set("Authorization", `Bearer ${user.accessToken}`);
+
+    expect(response.status).toBe(400);
+
+    expect(response.body.error.code).toBe(
+      "VALIDATION_ERROR"
+    );
+  });
+
+  it("rejects an invalid sort order", async () => {
+    const user = await createUserAndLogin("Invalid Order User");
+
+    const response = await request(app)
+      .get("/api/v1/todos?order=random")
+      .set("Authorization", `Bearer ${user.accessToken}`);
+
+    expect(response.status).toBe(400);
+
+    expect(response.body.error.code).toBe(
+      "VALIDATION_ERROR"
+    );
+  });
+
+  it("supports sorting with pagination", async () => {
+    const user = await createUserAndLogin("Sort Pagination User");
+
+    for (const title of [
+      "Zebra Todo",
+      "Apple Todo",
+      "Middle Todo",
+      "Another Todo"
+    ]) {
+      const response = await request(app)
+        .post("/api/v1/todos")
+        .set("Authorization", `Bearer ${user.accessToken}`)
+        .send({
+          title,
+          description: "Sorting pagination test"
+        });
+
+      expect(response.status).toBe(201);
+    }
+
+    const response = await request(app)
+      .get("/api/v1/todos?sort=title&order=asc&page=1&limit=2")
+      .set("Authorization", `Bearer ${user.accessToken}`);
+
+    expect(response.status).toBe(200);
+
+    expect(response.body.data.map((todo) => todo.title)).toEqual([
+      "Another Todo",
+      "Apple Todo"
+    ]);
+
+    expect(response.body.meta).toEqual({
+      page: 1,
+      limit: 2,
+      total: 4,
+      totalPages: 2
+    });
+  });
+
+  it("supports search, filtering, sorting, and pagination together", async () => {
+    const user = await createUserAndLogin("Combined Query User");
+
+    const todoData = [
+      {
+        title: "Node Zebra",
+        description: "Node.js backend",
+        completed: true
+      },
+      {
+        title: "Node Apple",
+        description: "Node.js API",
+        completed: true
+      },
+      {
+        title: "Node Middle",
+        description: "Node.js service",
+        completed: true
+      },
+      {
+        title: "Node Pending",
+        description: "Node.js pending task",
+        completed: false
+      }
+    ];
+
+    const todos = [];
+
+    for (const data of todoData) {
+      const response = await request(app)
+        .post("/api/v1/todos")
+        .set("Authorization", `Bearer ${user.accessToken}`)
+        .send({
+          title: data.title,
+          description: data.description
+        });
+
+      expect(response.status).toBe(201);
+
+      const todo = response.body.data;
+
+      if (data.completed) {
+        const update = await request(app)
+          .patch(`/api/v1/todos/${todo.id}`)
+          .set("Authorization", `Bearer ${user.accessToken}`)
+          .send({
+            completed: true
+          });
+
+        expect(update.status).toBe(200);
+      }
+
+      todos.push(todo);
+    }
+
+    const response = await request(app)
+      .get(
+        "/api/v1/todos?search=node&completed=true&sort=title&order=asc&page=1&limit=2"
+      )
+      .set("Authorization", `Bearer ${user.accessToken}`);
+
+    expect(response.status).toBe(200);
+
+    expect(response.body.data.map((todo) => todo.title)).toEqual([
+      "Node Apple",
+      "Node Middle"
+    ]);
+
+    expect(response.body.data.every(
+      (todo) => todo.completed === true
+    )).toBe(true);
+
+    expect(response.body.meta).toEqual({
+      page: 1,
+      limit: 2,
+      total: 3,
+      totalPages: 2
+    });
+  });
+
 });

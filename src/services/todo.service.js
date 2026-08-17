@@ -19,7 +19,7 @@ export const createTodo = async ({ userId, title, description }) => {
   });
 };
 
-export const getTodosByUser = async ({ userId, page = 1, limit = 10, completed, search }) => {
+export const getTodosByUser = async ({ userId, page = 1, limit = 10, completed, search, sort = "createdAt", order = "desc" }) => {
   const skip = (page - 1) * limit;
 
   const where = {
@@ -56,7 +56,7 @@ export const getTodosByUser = async ({ userId, page = 1, limit = 10, completed, 
         updatedAt: true
       },
       orderBy: {
-        createdAt: "desc"
+        [sort]: order
       },
       skip,
       take: limit
